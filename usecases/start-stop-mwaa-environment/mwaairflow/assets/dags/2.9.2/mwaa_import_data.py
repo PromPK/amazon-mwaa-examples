@@ -172,9 +172,34 @@ def unpause_dag_with_retries(session):
     for dag_id in still_paused_dags:
       print(f"  - {dag_id}")
     print("These DAGs need to be manually unpaused.")
-    # TODO: Send email notification about DAGs that need manual intervention
+    send_email_notification(still_paused_dags)
   else:
     print("All active DAGs have been successfully unpaused.")
+
+
+def send_email_notification(dag_ids):
+  """
+  Send email notification about DAGs that need manual unpausing
+  """
+  try:
+    ses_client = boto3.client('ses')
+
+    recipients = ["sirilux.s@codetism.com", "panupong.k@codetism.com"]
+    sender_email = "airflow@beautyconnect.shiseido.co.th"
+
+    dag_list = "\n".join([f"- {dag_id}" for dag_id in dag_ids])
+
+    ses_client.send_email(
+      Source=sender_email,
+      Destination={'ToAddresses': recipients if isinstance(recipients, list) else [recipients]},
+      Message={
+        'Subject': {'Data': 'DAGs Need Manual Unpausing'},
+        'Body': {'Text': {'Data': f'The following DAGs need to be manually unpaused:\n\n{dag_list}'}}
+      }
+    )
+
+  except Exception as e:
+    print(f"Failed to send email: {str(e)}")
 
 
 # Variables are imported separately as they are encyrpted
