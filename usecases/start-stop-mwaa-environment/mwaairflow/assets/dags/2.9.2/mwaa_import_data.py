@@ -110,11 +110,72 @@ def activate_dags(**context):
             cursor.copy_expert(
                 "COPY active_dags FROM STDIN WITH (FORMAT CSV, HEADER TRUE)", f)
             conn.commit()
-        session.execute(text(
-            f"UPDATE dag d SET is_paused=false FROM active_dags ed WHERE d.dag_id = ed.dag_id;"))
-        session.commit()
+        unpause_dag_with_retries(session)
     finally:
         conn.close()
+
+
+def unpause_dag_with_retries(session):
+  max_retries = 5
+  retry_delay = 30
+  all_dags_registered = False
+
+  for attempt in range(max_retries):
+    print(f"Attempt {attempt + 1}: Checking if all DAGs are registered...")
+
+    missing_dags_query = """
+       SELECT ad.dag_id
+       FROM active_dags ad
+              LEFT JOIN dag d ON ad.dag_id = d.dag_id
+       WHERE d.dag_id IS NULL
+    """
+    missing_result = session.execute(text(missing_dags_query))
+    missing_dags = [row[0] for row in missing_result.fetchall()]
+
+    if not missing_dags:
+      print("All DAGs have been registered in the dag table.")
+      all_dags_registered = True
+      break
+
+    if attempt < max_retries - 1:
+      print(f"Still waiting for {len(missing_dags)} DAGs to be registered: {missing_dags}")
+      print(f"Waiting {retry_delay} seconds before retry...")
+      time.sleep(retry_delay)
+    else:
+      print(
+        f"Warning: {len(missing_dags)} DAGs were not registered after {max_retries} attempts: {missing_dags}")
+
+  if all_dags_registered:
+    print("Updating all active DAGs to be unpaused...")
+    session.execute(text(
+      "UPDATE dag d SET is_paused=false FROM active_dags ad WHERE d.dag_id = ad.dag_id"))
+    session.commit()
+    print("Successfully updated all registered active DAGs.")
+  else:
+    print("Proceeding with partial update for registered DAGs only...")
+    session.execute(text(
+      "UPDATE dag d SET is_paused=false FROM active_dags ad WHERE d.dag_id = ad.dag_id"))
+    session.commit()
+    print("Updated only the DAGs that are currently registered.")
+
+  still_paused_query = """
+     SELECT ad.dag_id
+     FROM active_dags ad
+            INNER JOIN dag d ON ad.dag_id = d.dag_id
+     WHERE d.is_paused = true
+   """
+  still_paused_result = session.execute(text(still_paused_query))
+  still_paused_dags = [row[0] for row in still_paused_result.fetchall()]
+
+  if still_paused_dags:
+    print(f"WARNING: The following {len(still_paused_dags)} DAGs should be unpaused but are still paused:")
+    for dag_id in still_paused_dags:
+      print(f"  - {dag_id}")
+    print("These DAGs need to be manually unpaused.")
+    # TODO: Send email notification about DAGs that need manual intervention
+  else:
+    print("All active DAGs have been successfully unpaused.")
+
 
 # Variables are imported separately as they are encyrpted
 def importVariable(**context):
