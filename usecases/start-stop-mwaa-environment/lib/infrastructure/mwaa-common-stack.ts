@@ -150,6 +150,11 @@ export class MwaaCommonStack extends MwaaBaseStack {
             effect: iam.Effect.ALLOW,
             resources: [`arn:aws:states:${props.region}:${props.account}:stateMachine:*`],
           }),
+          new iam.PolicyStatement({
+            actions: ['ses:SendEmail'],
+            effect: iam.Effect.ALLOW,
+            resources: [`arn:aws:ses:${props.region}:${props.account}:identity/beautyconnect.shiseido.co.th`],
+          }),
         ],
       });
     }
