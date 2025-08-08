@@ -193,7 +193,7 @@ def send_email_notification(dag_ids):
       Source=sender_email,
       Destination={'ToAddresses': recipients if isinstance(recipients, list) else [recipients]},
       Message={
-        'Subject': {'Data': 'DAGs Need Manual Unpausing'},
+        'Subject': {'Data': 'On UAT environment, DAGs need manual unpausing'},
         'Body': {'Text': {'Data': f'The following DAGs need to be manually unpaused:\n\n{dag_list}'}}
       }
     )
