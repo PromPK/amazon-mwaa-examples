@@ -109,7 +109,7 @@ def activate_dags(**context):
         with open(tempfile, 'r') as f:
             cursor = conn.cursor()
             cursor.copy_expert(
-                "COPY active_dags FROM STDIN WITH (FORMAT CSV, HEADER TRUE)", f)
+                "COPY active_dags FROM STDIN WITH (FORMAT CSV, HEADER FALSE)", f)
             conn.commit()
         unpause_dag_with_retries(session)
     finally:
