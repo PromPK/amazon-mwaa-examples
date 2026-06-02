@@ -22,6 +22,7 @@ from airflow.models import DAG
 from airflow.models import Variable, Connection
 from airflow.hooks.S3_hook import S3Hook
 from sqlalchemy import text
+from datetime import timedelta
 import csv
 from io import StringIO
 import boto3
@@ -248,6 +249,8 @@ def notify_failure(context):
 
 default_args = {
     'owner': 'airflow',
+    'retries': 2,
+    'retry_delay': timedelta(seconds=90),
     'start_date': days_ago(1),
     'on_failure_callback': notify_failure
 }

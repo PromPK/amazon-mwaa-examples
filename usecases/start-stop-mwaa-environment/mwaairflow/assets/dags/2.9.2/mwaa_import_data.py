@@ -27,6 +27,7 @@ from airflow.utils.task_group import TaskGroup
 import os
 import csv
 from airflow.models import Variable,Connection
+from datetime import timedelta
 import json
 
 """
@@ -308,6 +309,8 @@ def notify_failure(context):
 
 default_args = {
     'owner': 'airflow',
+    'retries': 2,
+    'retry_delay': timedelta(seconds=90),
     'start_date': days_ago(1),
     'on_failure_callback': notify_failure
 }
